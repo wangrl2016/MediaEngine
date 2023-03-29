@@ -3,3 +3,12 @@
 //
 
 #pragma once
+
+#include "base/memory/noncopyable.h"
+
+namespace media {
+    class AudioFileWriter : public base::Noncopyable {
+    public:
+
+    };
+}

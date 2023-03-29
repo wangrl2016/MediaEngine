@@ -3,3 +3,7 @@
 //
 
 #include "media/filters/audio_file_writer.h"
+
+namespace media {
+
+}

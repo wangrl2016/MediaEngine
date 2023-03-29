@@ -12,6 +12,8 @@ conan_basic_setup(KEEP_RPATHS)
 
 add_executable(MediaEngineApp
         base/memory/noncopyable.h
+        base/time/time_delta.cc
+        base/time/time_delta.h
         main.cc
         media/filters/audio_file_reader.cc
         media/filters/audio_file_reader.h
