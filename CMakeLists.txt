@@ -15,6 +15,8 @@ add_executable(MediaEngineApp
         base/time/time_delta.cc
         base/time/time_delta.h
         main.cc
+        media/base/audio_parameters.cc
+        media/base/audio_parameters.h
         media/filters/audio_file_reader.cc
         media/filters/audio_file_reader.h
         media/filters/audio_file_writer.cc
