@@ -21,4 +21,11 @@ add_executable(MediaEngineApp
         media/filters/audio_file_reader.h
         media/filters/audio_file_writer.cc
         media/filters/audio_file_writer.h
+        media/filters/ffmpeg_glue.cc
+        media/filters/ffmpeg_glue.h
+        media/filters/ffmpeg_url_protocol.h
+        )
+
+target_link_libraries(MediaEngineApp
+        ${CONAN_LIBS}
         )
