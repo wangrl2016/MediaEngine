@@ -18,6 +18,12 @@ namespace media {
 
         ~FFmpegGlue();
 
+        // Opens an AVFormatContext specially prepared to process reads and seeks
+        // through the FFmpegURLProtocol provided during construction.
+        bool OpenContext();
+
+        AVFormatContext* format_context() { return format_context_; }
+
     private:
 
         AVFormatContext* format_context_ = nullptr;

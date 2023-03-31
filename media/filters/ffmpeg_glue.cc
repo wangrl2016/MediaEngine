@@ -12,4 +12,8 @@ namespace media {
     FFmpegGlue::~FFmpegGlue() {
 
     }
+
+    bool FFmpegGlue::OpenContext() {
+
+    }
 }

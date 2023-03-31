@@ -24,6 +24,8 @@ add_executable(MediaEngineApp
         media/filters/ffmpeg_glue.cc
         media/filters/ffmpeg_glue.h
         media/filters/ffmpeg_url_protocol.h
+        media/filters/memory_url_protocol.cc
+        media/filters/memory_url_protocol.h
         )
 
 target_link_libraries(MediaEngineApp

@@ -21,8 +21,5 @@ namespace media {
 
         // Returns true and the file size, false if the file size could not be retrieved.
         virtual bool GetSize(int64_t* size_out) = 0;
-
-        // Returns false if this protocol supports random seeking.
-        virtual bool IsStreaming() = 0;
     };
 }
