@@ -5,10 +5,14 @@
 #pragma once
 
 #include <vector>
+
 extern "C" {
 #include <libavformat/avformat.h>
 }
+
 #include "base/memory/noncopyable.h"
+#include "base/time/time_delta.h"
+#include "media/filters/ffmpeg_glue.h"
 
 namespace media {
     class AudioBus;
@@ -42,7 +46,23 @@ namespace media {
         // Returns true if (an estimated) duration of the audio data is
         // known. Must be called after Open().
         [[nodiscard]] bool HasKnownDuration() const;
+
+        [[nodiscard]] base::TimeDelta GetDuration() const;
+
+        [[nodiscard]] int GetNumberOfFrames() const;
+
     private:
+        bool OpenDemuxer();
+
+        bool OpenDecoder();
+
+        bool ReadPacket(AVPacket* output_packet);
+
+        // Destruct |glue_| after |codec_context_|.
+        std::unique_ptr<FFmpegGlue> glue_;
+
+        int stream_index_;
+        FFmpegURLProtocol* protocol_;
 
         int channels_;
         int sample_rate_;

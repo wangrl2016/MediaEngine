@@ -10,13 +10,17 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup(KEEP_RPATHS)
 
-add_executable(MediaEngineApp
+set(BASE_SOURCES
         base/memory/noncopyable.h
         base/time/time_delta.cc
         base/time/time_delta.h
-        main.cc
+        )
+
+set(MEDIA_SOURCES
         media/base/audio_parameters.cc
         media/base/audio_parameters.h
+        media/base/decoder_buffer.cc
+        media/base/decoder_buffer.h
         media/filters/audio_file_reader.cc
         media/filters/audio_file_reader.h
         media/filters/audio_file_writer.cc
@@ -28,6 +32,33 @@ add_executable(MediaEngineApp
         media/filters/memory_url_protocol.h
         )
 
+add_library(MediaEngineLib STATIC)
+target_sources(MediaEngineLib
+        PRIVATE
+        ${BASE_SOURCES}
+        ${MEDIA_SOURCES}
+        )
+
+add_executable(MediaEngineApp
+        main.cc
+        )
+
 target_link_libraries(MediaEngineApp
         ${CONAN_LIBS}
+        MediaEngineLib
         )
+
+# build tests
+enable_testing()
+
+add_executable(MediaEngineTest
+        media/filters/audio_file_reader_test.cc
+        )
+
+target_link_libraries(MediaEngineTest
+        ${CONAN_LIBS}
+        MediaEngineLib)
+
+include(GoogleTest)
+gtest_discover_tests(MediaEngineTest)
+
