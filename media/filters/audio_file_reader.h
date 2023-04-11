@@ -13,6 +13,7 @@ extern "C" {
 #include "base/memory/noncopyable.h"
 #include "base/time/time_delta.h"
 #include "media/base/audio_parameters.h"
+#include "media/ffmpeg/ffmpeg_delete.h"
 #include "media/filters/ffmpeg_glue.h"
 
 namespace media {
@@ -63,6 +64,7 @@ namespace media {
 
         // Destruct |glue_| after |codec_context_|.
         std::unique_ptr<FFmpegGlue> glue_;
+        std::unique_ptr<AVCodecContext, ScopedPtrAVFreeContext> codec_context_;
 
         int stream_index_;
         std::shared_ptr<FFmpegURLProtocol> protocol_;

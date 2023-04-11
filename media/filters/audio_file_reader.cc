@@ -3,6 +3,7 @@
 //
 
 #include <memory>
+#include <glog/logging.h>
 #include "media/filters/audio_file_reader.h"
 
 namespace media {
@@ -50,8 +51,31 @@ namespace media {
 
         // Open FFmpeg AVFormatContext.
         if (!glue_->OpenContext()) {
-
+            DLOG(WARNING) << "AudioFileReader::Open() : error in avformat_open_input()";
+            return false;
         }
+
+        const int result = avformat_find_stream_info(format_context, nullptr);
+        if (result < 0) {
+            DLOG(WARNING) << "AudioFileReader::Open() : error in avformat_find_stream_info()";
+            return false;
+        }
+
+        // Calling avformat_find_stream_info can uncover new streams. We wait till now
+        // to find the first audio stream, if any.
+        codec_context_.reset();
+        bool found_stream = false;
+        for (size_t i = 0; i < format_context->nb_streams; ++i) {
+            if (format_context->streams[i]->codecpar->codec_type ==
+                AVMEDIA_TYPE_AUDIO) {
+                stream_index_ = int(i);
+                found_stream = true;
+                break;
+            }
+        }
+
+        if (!found_stream)
+            return false;
     }
 
     bool AudioFileReader::OpenDecoder() {
