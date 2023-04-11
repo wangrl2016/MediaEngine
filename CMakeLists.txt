@@ -21,6 +21,7 @@ set(MEDIA_SOURCES
         media/base/audio_parameters.h
         media/base/decoder_buffer.cc
         media/base/decoder_buffer.h
+        media/ffmpeg/ffmpeg_delete.h
         media/filters/audio_file_reader.cc
         media/filters/audio_file_reader.h
         media/filters/audio_file_writer.cc

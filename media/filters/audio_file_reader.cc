@@ -2,15 +2,13 @@
 // Created by wangrl2016 on 2023/3/27.
 //
 
+#include <memory>
 #include "media/filters/audio_file_reader.h"
 
 namespace media {
-    AudioFileReader::AudioFileReader(FFmpegURLProtocol* protocol) :
+    AudioFileReader::AudioFileReader(std::shared_ptr<FFmpegURLProtocol> protocol) :
             stream_index_(0),
-            protocol_(protocol),
-            channels_(0),
-            sample_rate_(0),
-            av_sample_format_(AV_SAMPLE_FMT_NONE) {}
+            protocol_(protocol) {}
 
     AudioFileReader::~AudioFileReader() {
         Close();
@@ -18,6 +16,11 @@ namespace media {
 
     bool AudioFileReader::Open() {
         return OpenDemuxer() && OpenDecoder();
+    }
+
+    bool AudioFileReader::SetOutputParameters(const AudioParameters& parameters) {
+
+        return true;
     }
 
     void AudioFileReader::Close() {
@@ -37,12 +40,18 @@ namespace media {
 
     }
 
-    int AudioFileReader::GetNumberOfFrames() const {
+    int AudioFileReader::GetOutputNumberOfFrames() const {
 
     }
 
     bool AudioFileReader::OpenDemuxer() {
+        glue_ = std::make_unique<FFmpegGlue>(protocol_);
+        AVFormatContext* format_context = glue_->format_context();
 
+        // Open FFmpeg AVFormatContext.
+        if (!glue_->OpenContext()) {
+
+        }
     }
 
     bool AudioFileReader::OpenDecoder() {

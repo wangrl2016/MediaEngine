@@ -12,6 +12,7 @@ extern "C" {
 
 #include "base/memory/noncopyable.h"
 #include "base/time/time_delta.h"
+#include "media/base/audio_parameters.h"
 #include "media/filters/ffmpeg_glue.h"
 
 namespace media {
@@ -24,7 +25,7 @@ namespace media {
         // Audio file data will be read using the given protocol.
         // The AudioFileReader does not take ownership of |protocol| and
         // simply maintains a weak reference to it.
-        explicit AudioFileReader(FFmpegURLProtocol* protocol);
+        explicit AudioFileReader(std::shared_ptr<FFmpegURLProtocol> protocol);
 
         virtual ~AudioFileReader();
 
@@ -33,15 +34,17 @@ namespace media {
         // It returns |true| on success.
         bool Open();
 
+        bool SetOutputParameters(const AudioParameters& parameters);
+
         void Close();
 
         int Read(std::vector<std::unique_ptr<AudioBus>>* decoded_audio_packets,
                  int packets_to_read = std::numeric_limits<int>::max());
 
         // These methods can ba called once Open() has been called.
-        [[nodiscard]] int channels() const { return channels_; }
+        [[nodiscard]] int InputChannels() const { return input_audio_parameters_.channel_count(); }
 
-        [[nodiscard]] int sample_rate() const { return sample_rate_; }
+        [[nodiscard]] int InputSampleRate() const { return input_audio_parameters_.sample_rate(); }
 
         // Returns true if (an estimated) duration of the audio data is
         // known. Must be called after Open().
@@ -49,7 +52,7 @@ namespace media {
 
         [[nodiscard]] base::TimeDelta GetDuration() const;
 
-        [[nodiscard]] int GetNumberOfFrames() const;
+        [[nodiscard]] int GetOutputNumberOfFrames() const;
 
     private:
         bool OpenDemuxer();
@@ -62,10 +65,9 @@ namespace media {
         std::unique_ptr<FFmpegGlue> glue_;
 
         int stream_index_;
-        FFmpegURLProtocol* protocol_;
+        std::shared_ptr<FFmpegURLProtocol> protocol_;
 
-        int channels_;
-        int sample_rate_;
-        AVSampleFormat av_sample_format_;
+        AudioParameters input_audio_parameters_;
+        AudioParameters output_audio_parameters_;
     };
 }
