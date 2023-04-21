@@ -64,7 +64,8 @@ namespace media {
 
         // Destruct |glue_| after |codec_context_|.
         std::unique_ptr<FFmpegGlue> glue_;
-        std::unique_ptr<AVCodecContext, ScopedPtrAVFreeContext> codec_context_;
+        std::unique_ptr<AVCodecContext, ScopedPtrFreeAVCodecContext> codec_context_;
+        std::unique_ptr<SwrContext, ScopedPtrFreeSwrContext> swr_context_;
 
         int stream_index_;
         std::shared_ptr<FFmpegURLProtocol> protocol_;

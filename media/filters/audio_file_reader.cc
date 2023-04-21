@@ -3,13 +3,19 @@
 //
 
 #include <memory>
+#include <utility>
 #include <glog/logging.h>
 #include "media/filters/audio_file_reader.h"
+#include "media/ffmpeg/ffmpeg_common.h"
 
 namespace media {
+    // AAC(M4A) decoding specific constants.
+    static const int kAACPrimingFrameCount = 2112;
+    static const int kAACRemainderFrameCount = 519;
+
     AudioFileReader::AudioFileReader(std::shared_ptr<FFmpegURLProtocol> protocol) :
             stream_index_(0),
-            protocol_(protocol) {}
+            protocol_(std::move(protocol)) {}
 
     AudioFileReader::~AudioFileReader() {
         Close();
@@ -20,12 +26,38 @@ namespace media {
     }
 
     bool AudioFileReader::SetOutputParameters(const AudioParameters& parameters) {
+        output_audio_parameters_ = parameters;
+
+        if (input_audio_parameters_.channel_count() != output_audio_parameters_.channel_count() ||
+                input_audio_parameters_.sample_rate() != output_audio_parameters_.sample_rate() ||
+                input_audio_parameters_.av_sample_format() != output_audio_parameters_.av_sample_format()) {
+            // Initialize the resample to be able to convert audio sample formats.
+            swr_context_ = std::unique_ptr<SwrContext, ScopedPtrFreeSwrContext>(
+                    swr_alloc_set_opts(
+                            nullptr,
+                            av_get_default_channel_layout(output_audio_parameters_.channel_count()),
+                            output_audio_parameters_.av_sample_format(),
+                            output_audio_parameters_.sample_rate(),
+                            av_get_default_channel_layout(input_audio_parameters_.channel_count()),
+                            input_audio_parameters_.av_sample_format(),
+                            input_audio_parameters_.sample_rate(),
+                            0,
+                            nullptr));
+
+            if (!swr_context_ || swr_init(swr_context_.get()) < 0) {
+                LOG(ERROR) << "Could not init swr context";
+                Close();
+                return false;
+            }
+        }
 
         return true;
     }
 
     void AudioFileReader::Close() {
-        
+        codec_context_.reset();
+        swr_context_.reset();
+        glue_.reset();
     }
 
     int AudioFileReader::Read(std::vector<std::unique_ptr<AudioBus>>* decoded_audio_packets,
@@ -34,15 +66,38 @@ namespace media {
     }
 
     bool AudioFileReader::HasKnownDuration() const {
-        return true;
+        return glue_->format_context()->duration != AV_NOPTS_VALUE;
     }
 
     base::TimeDelta AudioFileReader::GetDuration() const {
+        const AVRational av_time_base = {1, AV_TIME_BASE};
 
+        DCHECK_NE(glue_->format_context()->duration, AV_NOPTS_VALUE);
+        int64_t estimated_duration_us = glue_->format_context()->duration;
+
+        if (input_audio_parameters_.av_codec_id() == AV_CODEC_ID_AAC) {
+            // For certain AAC-encoded files, FFMPEG's estimated frame count might not
+            // be sufficient to capture the entire audio content that we want. This is
+            // especially noticeable for short files (< 10ms) resulting in silence
+            // throughout the decoded buffer. Thus, we add the priming frames and the
+            // remainder frames to the estimation.
+            estimated_duration_us += ceil(
+                    1000000.0 * static_cast<double>(kAACPrimingFrameCount + kAACRemainderFrameCount) /
+                    InputSampleRate());
+        } else {
+            // Add one microsecond to avoid rounding-down errors which can occur when
+            // |duration| has been calculated from an exact number of sample-frames.
+            // One microsecond is much less than the time of a single sample-frame
+            // at any real-world sample-rate.
+            estimated_duration_us += 1;
+        }
+
+        return ConvertFromTimeBase(av_time_base,
+                                   estimated_duration_us);
     }
 
     int AudioFileReader::GetOutputNumberOfFrames() const {
-
+        return std::ceil(GetDuration().InSecondsF() * output_audio_parameters_.sample_rate());
     }
 
     bool AudioFileReader::OpenDemuxer() {
@@ -78,7 +133,7 @@ namespace media {
             return false;
 
         // get the codec context
-        codec_context_ = std::unique_ptr<AVCodecContext, ScopedPtrAVFreeContext>(
+        codec_context_ = std::unique_ptr<AVCodecContext, ScopedPtrFreeAVCodecContext>(
                 avcodec_alloc_context3(nullptr));
         if (avcodec_parameters_to_context(codec_context_.get(),
                                           format_context->streams[stream_index_]->codecpar) < 0) {

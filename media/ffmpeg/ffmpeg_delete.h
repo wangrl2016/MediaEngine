@@ -7,6 +7,7 @@
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <libswresample/swresample.h>
 }
 
 namespace media {
@@ -16,10 +17,17 @@ namespace media {
         }
     };
 
-    struct ScopedPtrAVFreeContext {
+    struct ScopedPtrFreeAVCodecContext {
         inline void operator()(void* x) const {
             auto* codec_context = static_cast<AVCodecContext*>(x);
             avcodec_free_context(&codec_context);
+        }
+    };
+
+    struct ScopedPtrFreeSwrContext {
+        inline void operator()(void* x) const {
+            auto* swr_context = static_cast<SwrContext*>(x);
+            swr_free(&swr_context);
         }
     };
 }

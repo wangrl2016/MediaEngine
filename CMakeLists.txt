@@ -12,6 +12,7 @@ conan_basic_setup(KEEP_RPATHS)
 
 set(BASE_SOURCES
         base/memory/noncopyable.h
+        base/time/time_base.h
         base/time/time_delta.cc
         base/time/time_delta.h
         )
@@ -21,6 +22,8 @@ set(MEDIA_SOURCES
         media/base/audio_parameters.h
         media/base/decoder_buffer.cc
         media/base/decoder_buffer.h
+        media/ffmpeg/ffmpeg_common.cc
+        media/ffmpeg/ffmpeg_common.h
         media/ffmpeg/ffmpeg_delete.h
         media/filters/audio_file_reader.cc
         media/filters/audio_file_reader.h

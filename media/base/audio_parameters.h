@@ -30,14 +30,16 @@ namespace media {
 
         [[nodiscard]] AVSampleFormat av_sample_format() const { return av_sample_format_; }
 
-        void set_av_sample_format(AVSampleFormat format) {
-            av_sample_format_ = format;
-        }
+        void set_av_sample_format(AVSampleFormat format) { av_sample_format_ = format; }
 
+        [[nodiscard]] AVCodecID av_codec_id() const { return codec_id_; }
+
+        void set_av_codec_id(AVCodecID id) { codec_id_ = id; }
     private:
         int channel_count_;
         int sample_rate_;
-        AVSampleFormat av_sample_format_;
+        AVSampleFormat av_sample_format_ = AV_SAMPLE_FMT_NONE;
+        AVCodecID codec_id_ = AV_CODEC_ID_NONE;
     };
 }
 
