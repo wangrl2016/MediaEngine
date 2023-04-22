@@ -56,6 +56,7 @@ target_link_libraries(MediaEngineApp
 enable_testing()
 
 add_executable(MediaEngineTest
+        media/base/decoder_buffer_test.cc
         media/filters/audio_file_reader_test.cc
         )
 

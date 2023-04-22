@@ -1,4 +1,4 @@
-import os.path
+import os
 import shutil
 import urllib.request
 
@@ -9,6 +9,9 @@ audio_urls = {
 audio_dir = 'resources/audio/'
 
 if __name__ == '__main__':
+    if not os.path.exists(audio_dir):
+        os.mkdir(audio_dir)
+
     # download audio
     for url in audio_urls:
         filename = url.split('/')[-1]
