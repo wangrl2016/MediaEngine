@@ -1,3 +1,7 @@
+resources/audio/
+resources/video/
+resources/images/
+cmake-build/
 cmake-build-debug/
 cmake-build-release/
 .idea/
