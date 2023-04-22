@@ -22,6 +22,8 @@ set(MEDIA_SOURCES
         media/base/audio_parameters.h
         media/base/decoder_buffer.cc
         media/base/decoder_buffer.h
+        media/base/test_data_util.cc
+        media/base/test_data_util.h
         media/ffmpeg/ffmpeg_common.cc
         media/ffmpeg/ffmpeg_common.h
         media/ffmpeg/ffmpeg_delete.h

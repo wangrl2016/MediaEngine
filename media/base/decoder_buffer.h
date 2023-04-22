@@ -21,6 +21,10 @@ namespace media {
             return data_.get();
         }
 
+        uint8_t* writable_data() const {
+            return data_.get();
+        }
+
         [[nodiscard]] size_t data_size() const {
             return size_;
         }
