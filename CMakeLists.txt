@@ -18,6 +18,8 @@ set(BASE_SOURCES
         )
 
 set(MEDIA_SOURCES
+        media/base/audio_bus.cc
+        media/base/audio_bus.h
         media/base/audio_parameters.cc
         media/base/audio_parameters.h
         media/base/decoder_buffer.cc
