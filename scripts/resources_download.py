@@ -10,7 +10,7 @@ audio_dir = 'resources/audio/'
 
 if __name__ == '__main__':
     if not os.path.exists(audio_dir):
-        os.mkdir(audio_dir)
+        os.makedirs(audio_dir)
 
     # download audio
     for url in audio_urls:
