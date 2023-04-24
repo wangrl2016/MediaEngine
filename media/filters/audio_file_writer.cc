@@ -2,6 +2,7 @@
 // Created by wangrl2016 on 2023/3/27.
 //
 
+#include <glog/logging.h>
 #include "media/filters/audio_file_writer.h"
 
 namespace media {
@@ -18,9 +19,10 @@ namespace media {
                                const AudioParameters& output_audio_parameters) {
         int error;
 
-        // Open the output file to write to it.
-
-
         return true;
+    }
+
+    void AudioFileWriter::Close() {
+
     }
 }

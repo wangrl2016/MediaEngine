@@ -38,6 +38,10 @@ set(MEDIA_SOURCES
         media/filters/ffmpeg_url_protocol.h
         media/filters/memory_url_protocol.cc
         media/filters/memory_url_protocol.h
+        media/filters/video_file_reader.cc
+        media/filters/video_file_reader.h
+        media/filters/video_file_writer.cc
+        media/filters/video_file_writer.h
         )
 
 add_library(MediaEngineLib STATIC)
@@ -62,6 +66,9 @@ enable_testing()
 add_executable(MediaEngineTest
         media/base/decoder_buffer_test.cc
         media/filters/audio_file_reader_test.cc
+        media/filters/audio_file_writer_test.cc
+        media/filters/video_file_reader_test.cc
+        media/filters/video_file_writer_test.cc
         )
 
 target_link_libraries(MediaEngineTest

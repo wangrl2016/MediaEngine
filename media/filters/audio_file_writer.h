@@ -26,5 +26,7 @@ namespace media {
         int64_t pts_;
         AudioParameters input_audio_parameters_;
         AudioParameters output_audio_parameters_;
+
+        AVFormatContext* output_format_context_ = nullptr;
     };
 }
