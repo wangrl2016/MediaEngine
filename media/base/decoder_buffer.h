@@ -21,7 +21,7 @@ namespace media {
             return data_.get();
         }
 
-        uint8_t* writable_data() const {
+        [[nodiscard]] uint8_t* writable_data() const {
             return data_.get();
         }
 

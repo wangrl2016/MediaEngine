@@ -35,10 +35,12 @@ namespace media {
             swr_context_ = std::unique_ptr<SwrContext, ScopedPtrFreeSwrContext>(
                     swr_alloc_set_opts(
                             nullptr,
-                            av_get_default_channel_layout(output_audio_parameters_.channel_count()),
+                            av_get_default_channel_layout(
+                                    output_audio_parameters_.channel_count()),
                             output_audio_parameters_.av_sample_format(),
                             output_audio_parameters_.sample_rate(),
-                            av_get_default_channel_layout(input_audio_parameters_.channel_count()),
+                            av_get_default_channel_layout(
+                                    input_audio_parameters_.channel_count()),
                             input_audio_parameters_.av_sample_format(),
                             input_audio_parameters_.sample_rate(),
                             0,
@@ -54,15 +56,14 @@ namespace media {
         return true;
     }
 
+    std::shared_ptr<AudioBus> AudioFileReader::Read() {
+
+    }
+
     void AudioFileReader::Close() {
         codec_context_.reset();
         swr_context_.reset();
         glue_.reset();
-    }
-
-    int AudioFileReader::Read(std::vector<std::unique_ptr<AudioBus>>* decoded_audio_packets,
-                              int packets_to_read) {
-        return 0;
     }
 
     bool AudioFileReader::HasKnownDuration() const {
@@ -174,9 +175,5 @@ namespace media {
         input_audio_parameters_.set_sample_rate(codec_context_->sample_rate);
         input_audio_parameters_.set_av_sample_format(codec_context_->sample_fmt);
         return true;
-    }
-
-    bool AudioFileReader::ReadPacket(AVPacket* output_packet) {
-
     }
 }

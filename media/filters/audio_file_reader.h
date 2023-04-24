@@ -37,10 +37,9 @@ namespace media {
 
         bool SetOutputParameters(const AudioParameters& parameters);
 
-        void Close();
+        std::shared_ptr<AudioBus> Read();
 
-        int Read(std::vector<std::unique_ptr<AudioBus>>* decoded_audio_packets,
-                 int packets_to_read = std::numeric_limits<int>::max());
+        void Close();
 
         // These methods can ba called once Open() has been called.
         [[nodiscard]] int InputChannels() const { return input_audio_parameters_.channel_count(); }
@@ -59,8 +58,6 @@ namespace media {
         bool OpenDemuxer();
 
         bool OpenDecoder();
-
-        bool ReadPacket(AVPacket* output_packet);
 
         // Destruct |glue_| after |codec_context_|.
         std::unique_ptr<FFmpegGlue> glue_;
