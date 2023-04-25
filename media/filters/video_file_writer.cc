@@ -45,7 +45,11 @@ namespace media {
         // Now that all the parameters are set, we can open the audio and
         // video codecs and allocate the necessary encode buffers.
         if (have_video) {
+            OpenVideo(nullptr);
+        }
 
+        if (have_audio) {
+            OpenAudio(nullptr);
         }
     }
 
@@ -128,5 +132,100 @@ namespace media {
         // Some formats want stream headers to be separate.
         if (output_format_context_->flags & AVFMT_GLOBALHEADER)
             codec_context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+    }
+
+    void VideoFileWriter::OpenVideo(AVDictionary* opt_arg) {
+        int ret;
+        AVCodecContext* codec_context = video_stream_.encoder;
+        AVDictionary* opt = nullptr;
+        av_dict_copy(&opt, opt_arg, 0);
+
+        // open the codec
+        ret = avcodec_open2(codec_context, video_codec_, &opt);
+        av_dict_free(&opt);
+        if (ret < 0) {
+            LOG(ERROR) << "Could not open video codec: " << ret;
+            return;
+        }
+
+        // allocate and init a re-usable frame
+        video_stream_.frame = AllocVideoFrame(codec_context->pix_fmt,
+                                              codec_context->width,
+                                              codec_context->height);
+        if (!video_stream_.frame) {
+            LOG(INFO) << "Could not allocate video frame";
+            return;
+        }
+
+        // If the output format is not YUV420P, then a temporary YUV420P
+        // picture is needed too. It is then converted to the required
+        // output format.
+        video_stream_.tmp_frame = nullptr;
+        if (codec_context->pix_fmt != AV_PIX_FMT_YUV420P) {
+            video_stream_.tmp_frame = AllocVideoFrame(AV_PIX_FMT_YUV420P,
+                                                      codec_context->width,
+                                                      codec_context->height);
+            if (!video_stream_.tmp_frame) {
+                LOG(ERROR) << "Could not allocate temporary video frame";
+                return;
+            }
+        }
+
+        // copy the stream parameters to the muxer
+        ret = avcodec_parameters_from_context(video_stream_.stream->codecpar, codec_context);
+        if (ret < 0) {
+            LOG(ERROR) << "Could not copy the stream parameters";
+            return;
+        }
+    }
+
+    void VideoFileWriter::OpenAudio(AVDictionary* opt_arg) {
+        AVCodecContext* codec_context;
+        int nb_samples;
+        int ret;
+        AVDictionary * opt = nullptr;
+        codec_context = audio_stream_.encoder;
+
+        // open it
+        av_dict_copy(&opt, opt_arg, 0);
+        ret = avcodec_open2(codec_context, audio_codec_, &opt);
+        av_dict_free(&opt);
+        if (ret < 0) {
+            LOG(ERROR) << "Could not open audio codec: " << ret;
+            return;
+        }
+
+        // init signal generator
+        audio_stream_.t = 0;
+        audio_stream_.cr = 2 * M_PI * 110.0 / codec_context->sample_rate;
+        // increment frequency by 110 Hz per second
+        audio_stream_.cr2 = 2 * M_PI * 110.0 / codec_context->sample_rate / codec_context->sample_rate;
+
+        if (codec_context->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE)
+            nb_samples = 10000;
+        else
+            nb_samples = codec_context->frame_size;
+
+        // audio_stream_.frame = AllocAudioFrame
+    }
+
+    AVFrame* VideoFileWriter::AllocVideoFrame(enum AVPixelFormat pix_fmt, int width, int height) {
+        AVFrame* frame;
+        int ret;
+        frame = av_frame_alloc();
+        if (!frame)
+            return nullptr;
+
+        frame->format = pix_fmt;
+        frame->width = width;
+        frame->height = height;
+
+        // allocate the buffers for the frame data
+        ret = av_frame_get_buffer(frame, 0);
+        if (ret < 0) {
+            LOG(ERROR) << "Could not allocate frame data";
+            return nullptr;
+        }
+        return frame;
     }
 }

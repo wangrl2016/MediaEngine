@@ -9,6 +9,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
+#include <libavutil/channel_layout.h>
 }
 
 #include "base/memory/noncopyable.h"
@@ -46,7 +47,13 @@ namespace media {
         // Add an output stream.
         void AddStream(OutputStream* stream, const AVCodec** codec, enum AVCodecID codec_id);
 
-        void OpenVideo();
+        void OpenVideo(AVDictionary* opt_arg);
+
+        void OpenAudio(AVDictionary* opt_arg);
+
+        // Video output.
+        AVFrame* AllocVideoFrame(enum AVPixelFormat pix_fmt, int width, int height);
+
     private:
         OutputStream video_stream_, audio_stream_;
         AVFormatContext* output_format_context_;
