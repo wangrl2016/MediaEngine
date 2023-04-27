@@ -51,6 +51,41 @@ namespace media {
         if (have_audio) {
             OpenAudio(nullptr);
         }
+
+        av_dump_format(output_format_context_, 0, filename.c_str(), 1);
+
+        int ret;
+        // Open the output file, if needed.
+        if (!(fmt->flags & AVFMT_NOFILE)) {
+            ret = avio_open(&output_format_context_->pb, filename.c_str(), AVIO_FLAG_WRITE);
+            if (ret < 0) {
+                LOG(ERROR) << "Could not open " << filename << ", err " << ret;
+                return false;
+            }
+        }
+
+        // Write the stream header, if any.
+        ret = avformat_write_header(output_format_context_, nullptr);
+
+        return true;
+    }
+
+    bool VideoFileWriter::WriteTest() {
+        while (encode_video || encode_audio) {
+            if (!encode_audio || av_compare_ts(video_stream_.next_pts,
+                                               video_stream_.encoder->time_base,
+                                               audio_stream_.next_pts,
+                                               audio_stream_.encoder->time_base) <= 0) {
+                encode_video = !WriteVideoFrameTest(output_format_context_, &video_stream_);
+            } else {
+                encode_audio = !WriteAudioFrameTest(output_format_context_, &audio_stream_);
+            }
+        }
+        av_write_trailer(output_format_context_);
+    }
+
+    void VideoFileWriter::Close() {
+
     }
 
     void VideoFileWriter::AddStream(OutputStream* stream, const AVCodec** codec, enum AVCodecID codec_id) {
@@ -97,7 +132,7 @@ namespace media {
                     }
                 }
                 codec_context->channel_layout = AV_CH_LAYOUT_STEREO;
-                stream->stream->time_base = (AVRational){1, codec_context->sample_rate};
+                stream->stream->time_base = (AVRational) {1, codec_context->sample_rate};
                 break;
             case AVMEDIA_TYPE_VIDEO:
                 codec_context->codec_id = codec_id;
@@ -109,7 +144,7 @@ namespace media {
                 // of which frame timestamps are represented. For fixed-fps content,
                 // timebase should be 1 / framerate and timestamp increments should be
                 // identical to 1.
-                stream->stream->time_base = (AVRational) { 1, 25 };
+                stream->stream->time_base = (AVRational) {1, 25};
                 codec_context->time_base = stream->stream->time_base;
                 codec_context->gop_size = 12;   // emit one intra frame every twelve frames at most
                 codec_context->pix_fmt = AV_PIX_FMT_YUV420P;
@@ -183,7 +218,7 @@ namespace media {
         AVCodecContext* codec_context;
         int nb_samples;
         int ret;
-        AVDictionary * opt = nullptr;
+        AVDictionary* opt = nullptr;
         codec_context = audio_stream_.encoder;
 
         // open it
@@ -206,7 +241,41 @@ namespace media {
         else
             nb_samples = codec_context->frame_size;
 
-        // audio_stream_.frame = AllocAudioFrame
+        audio_stream_.frame = AllocAudioFrame(codec_context->sample_fmt,
+                                              codec_context->channel_layout,
+                                              codec_context->sample_rate,
+                                              nb_samples);
+        audio_stream_.tmp_frame = AllocAudioFrame(AV_SAMPLE_FMT_S16,
+                                                  codec_context->channel_layout,
+                                                  codec_context->sample_rate,
+                                                  nb_samples);
+
+        // Copy the stream parameters to the muxer.
+        ret = avcodec_parameters_from_context(audio_stream_.stream->codecpar, codec_context);
+        if (ret < 0) {
+            LOG(ERROR) << "Could not copy the stream parameters";
+            return;
+        }
+
+        // Create resampler context.
+        audio_stream_.swr_ctx = swr_alloc_set_opts(nullptr,
+                                                   int64_t(codec_context->channel_layout),
+                                                   codec_context->sample_fmt,
+                                                   codec_context->sample_rate,
+                                                   int64_t(codec_context->channel_layout),
+                                                   AV_SAMPLE_FMT_S16,
+                                                   codec_context->sample_rate,
+                                                   0,
+                                                   nullptr);
+        if (!audio_stream_.swr_ctx) {
+            LOG(ERROR) << "Could not allocate resampler context";
+            return;
+        }
+
+        // Initialize the resampling context.
+        if ((ret = swr_init(audio_stream_.swr_ctx)) < 0) {
+            LOG(ERROR) << "Failed to initialize the resampling context, ret " << ret;
+        }
     }
 
     AVFrame* VideoFileWriter::AllocVideoFrame(enum AVPixelFormat pix_fmt, int width, int height) {
@@ -228,4 +297,45 @@ namespace media {
         }
         return frame;
     }
+
+    AVFrame* VideoFileWriter::AllocAudioFrame(enum AVSampleFormat sample_fmt,
+                                              uint64_t channel_layout,
+                                              int sample_rate,
+                                              int nb_samples) {
+        AVFrame* frame = av_frame_alloc();
+        if (!frame) {
+            LOG(ERROR) << "Error allocating an audio frame";
+            return nullptr;
+        }
+
+        frame->format = sample_fmt;
+        frame->channel_layout = channel_layout;
+        frame->sample_rate = sample_rate;
+        frame->nb_samples = nb_samples;
+
+        if (nb_samples) {
+            if (av_frame_get_buffer(frame, 0) < 0) {
+                LOG(ERROR) << "Error allocating an audio buffer";
+                return nullptr;
+            }
+        }
+        return frame;
+    }
+
+    int VideoFileWriter::WriteFrame(AVFormatContext* output_format_context,
+                                AVCodecContext* codec_context,
+                                AVStream* stream,
+                                AVFrame* frame,
+                                AVPacket* pkt) {
+        int ret;
+
+        // send the frame to the encoder
+        ret = avcodec_send_frame(codec_context, frame);
+    }
+
+    int VideoFileWriter::WriteVideoFrameTest(AVFormatContext* output_format_context, OutputStream* ost) {
+
+    }
+
+    int VideoFileWriter::WriteAudioFrameTest(AVFormatContext* output_format_context, OutputStream* ost) {}
 }

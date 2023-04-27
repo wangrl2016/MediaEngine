@@ -9,6 +9,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
+#include <libavutil/opt.h>
 #include <libavutil/channel_layout.h>
 }
 
@@ -43,6 +44,9 @@ namespace media {
 
         bool Open(std::string filename);
 
+        bool WriteTest();
+
+        void Close();
     private:
         // Add an output stream.
         void AddStream(OutputStream* stream, const AVCodec** codec, enum AVCodecID codec_id);
@@ -54,6 +58,22 @@ namespace media {
         // Video output.
         AVFrame* AllocVideoFrame(enum AVPixelFormat pix_fmt, int width, int height);
 
+        AVFrame* AllocAudioFrame(enum AVSampleFormat sample_fmt,
+                                 uint64_t channel_layout,
+                                 int sample_rate,
+                                 int nb_samples);
+
+        int WriteFrame(AVFormatContext* output_format_context,
+                       AVCodecContext* codec_context,
+                       AVStream* stream,
+                       AVFrame* frame,
+                       AVPacket* pkt);
+
+        int WriteVideoFrameTest(AVFormatContext* output_format_context,
+                                OutputStream* ost);
+
+        int WriteAudioFrameTest(AVFormatContext* output_format_context,
+                                OutputStream* ost);
     private:
         OutputStream video_stream_, audio_stream_;
         AVFormatContext* output_format_context_;
