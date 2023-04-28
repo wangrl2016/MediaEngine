@@ -3,6 +3,7 @@ ffmpeg/5.0
 gflags/2.2.2
 glog/0.5.0
 gtest/1.13.0
+nlohmann_json/3.11.2
 
 [generators]
 cmake

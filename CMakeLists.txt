@@ -17,6 +17,11 @@ set(BASE_SOURCES
         base/time/time_delta.h
         )
 
+set(MODULE_SOURCES
+        modules/lottie/animation.cc
+        modules/lottie/animation.h
+        )
+
 set(MEDIA_SOURCES
         media/base/audio_bus.cc
         media/base/audio_bus.h
@@ -49,6 +54,7 @@ target_sources(MediaEngineLib
         PRIVATE
         ${BASE_SOURCES}
         ${MEDIA_SOURCES}
+        ${MODULE_SOURCES}
         )
 
 add_executable(MediaEngineApp
