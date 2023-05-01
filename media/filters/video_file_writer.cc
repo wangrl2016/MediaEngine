@@ -331,11 +331,133 @@ namespace media {
 
         // send the frame to the encoder
         ret = avcodec_send_frame(codec_context, frame);
+        if (ret < 0) {
+            LOG(ERROR) << "Error sending a frame to the encoder, err " << ret;
+            return ret;
+        }
+
+        while (ret >= 0) {
+            ret = avcodec_receive_packet(codec_context, pkt);
+            if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                break;
+            else if (ret < 0) {
+                LOG(ERROR) << "Error encoding a frame, err " << ret;
+                return ret;
+            }
+
+            // Rescale output packet timestamp value from codec to stream timebase.
+            av_packet_rescale_ts(pkt, codec_context->time_base, stream->time_base);
+
+            // Write the compressed frame to the media file.
+            ret = av_interleaved_write_frame(output_format_context, pkt);
+
+            // pkt is now blank (av_interleaved_write_frame() takes ownership of
+            // its contents and resets pkt), so that no unreferencing is necessary.
+            // This could be different if one used av_write_frame().
+            if (ret < 0) {
+                LOG(ERROR) << "Error while writing output packet, err " << ret;
+                return ret;
+            }
+        }
+
+        return ret == AVERROR_EOF ? 1 : 0;
     }
 
-    int VideoFileWriter::WriteVideoFrameTest(AVFormatContext* output_format_context, OutputStream* ost) {
+    int VideoFileWriter::WriteVideoFrameTest(AVFormatContext* output_format_context,
+                                             OutputStream* ost) {
+        return WriteFrame(output_format_context_,
+                          video_stream_.encoder,
+                          video_stream_.stream,
+                          GetVideoFrameTest(),
+                          video_stream_.tmp_pkt);
+    }
+
+    // Encode one audio frame and send it to the muxer.
+    // return 1 when encoding is finished, 0 otherwise.
+    int VideoFileWriter::WriteAudioFrameTest(AVFormatContext* output_format_context,
+                                             OutputStream* ost) {
 
     }
 
-    int VideoFileWriter::WriteAudioFrameTest(AVFormatContext* output_format_context, OutputStream* ost) {}
+    AVFrame* VideoFileWriter::GetVideoFrameTest() {
+        AVCodecContext* codec_context = video_stream_.encoder;
+
+        // Check if we want to generate more frames.
+        if (av_compare_ts(video_stream_.next_pts, codec_context->time_base,
+                          10, {1, 1}) > 0)
+            return nullptr;
+
+        // When we pass a frame to the encoder, it may keep a reference to it
+        // internally; make sure we do not overwrite it here.
+        if (av_frame_make_writable(video_stream_.frame) < 0)
+            return nullptr;
+
+        if (codec_context->pix_fmt != AV_PIX_FMT_YUV420P) {
+            // As we only generate a YUV420P picture, we must convert it
+            // to the codec pixel format if needed.
+            if (!video_stream_.sws_ctx) {
+                video_stream_.sws_ctx = sws_getContext(codec_context->width,
+                                                       codec_context->height,
+                                                       AV_PIX_FMT_YUV420P,
+                                                       codec_context->width,
+                                                       codec_context->height,
+                                                       codec_context->pix_fmt,
+                                                       SWS_BICUBIC,
+                                                       nullptr,
+                                                       nullptr,
+                                                       nullptr);
+                if (!video_stream_.sws_ctx) {
+                    LOG(ERROR) << "Could not initialize the conversion context";
+                    return nullptr;
+                }
+
+                FillYUVImageTest(video_stream_.tmp_frame,
+                                 video_stream_.next_pts,
+                                 codec_context->width,
+                                 codec_context->height);
+
+                sws_scale(video_stream_.sws_ctx,
+                          (const uint8_t* const *) video_stream_.tmp_frame->data,
+                          video_stream_.tmp_frame->linesize,
+                          0,
+                          codec_context->height,
+                          video_stream_.frame->data,
+                          video_stream_.frame->linesize);
+            }
+        } else {
+            FillYUVImageTest(video_stream_.frame,
+                             int(video_stream_.next_pts),
+                             codec_context->width,
+                             codec_context->height);
+        }
+
+        video_stream_.frame->pts = video_stream_.next_pts++;
+
+        return video_stream_.frame;
+    }
+
+    AVFrame* VideoFileWriter::GetAudioFrameTest() {
+
+    }
+
+    void VideoFileWriter::FillYUVImageTest(AVFrame* pict,
+                                           int frame_index,
+                                           int width,
+                                           int height) {
+        int x, y, i;
+        i = frame_index;
+
+        // Y
+        for (y = 0; y < height; y++)
+            for (x = 0; x < width; x++)
+                pict->data[0][y * pict->linesize[0] + x] = x + y + i * 3;
+
+        // Cb and Cr
+        for (y = 0; y < height / 2; y++) {
+            for (x = 0; x < width / 2; x++) {
+                pict->data[1][y * pict->linesize[1] + x] = 128 + y + i * 2;
+                pict->data[2][y * pict->linesize[2] + x] = 64 + x + i * 5;
+            }
+        }
+    }
 }

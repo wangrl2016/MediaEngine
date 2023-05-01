@@ -47,6 +47,7 @@ namespace media {
         bool WriteTest();
 
         void Close();
+
     private:
         // Add an output stream.
         void AddStream(OutputStream* stream, const AVCodec** codec, enum AVCodecID codec_id);
@@ -74,6 +75,17 @@ namespace media {
 
         int WriteAudioFrameTest(AVFormatContext* output_format_context,
                                 OutputStream* ost);
+
+        AVFrame* GetVideoFrameTest();
+
+        AVFrame* GetAudioFrameTest();
+
+        void FillYUVImageTest(AVFrame* pict,
+                              int frame_index,
+                              int width,
+                              int height);
+
+
     private:
         OutputStream video_stream_, audio_stream_;
         AVFormatContext* output_format_context_;
