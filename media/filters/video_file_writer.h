@@ -85,9 +85,9 @@ namespace media {
                               int width,
                               int height);
 
-
+        void CloseStream(OutputStream* stream);
     private:
-        OutputStream video_stream_, audio_stream_;
+        OutputStream video_stream_ = { nullptr }, audio_stream_ = { nullptr };
         AVFormatContext* output_format_context_;
         const AVCodec* audio_codec_, * video_codec_;
 

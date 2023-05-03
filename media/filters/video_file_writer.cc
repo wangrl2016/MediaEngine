@@ -52,6 +52,9 @@ namespace media {
             OpenAudio(nullptr);
         }
 
+        video_stream_.next_pts = 0;
+        audio_stream_.next_pts = 0;
+
         av_dump_format(output_format_context_, 0, filename.c_str(), 1);
 
         int ret;
@@ -82,6 +85,21 @@ namespace media {
             }
         }
         av_write_trailer(output_format_context_);
+
+        // Close each codec.
+        if (have_video)
+            CloseStream(&video_stream_);
+        if (have_audio)
+            CloseStream(&audio_stream_);
+
+        if (!(output_format_context_->oformat->flags & AVFMT_NOFILE))
+            // Close the output file
+            avio_closep(&output_format_context_->pb);
+
+        // Free the stream
+        avformat_free_context(output_format_context_);
+
+        return true;
     }
 
     void VideoFileWriter::Close() {
@@ -347,6 +365,7 @@ namespace media {
 
             // Rescale output packet timestamp value from codec to stream timebase.
             av_packet_rescale_ts(pkt, codec_context->time_base, stream->time_base);
+            pkt->stream_index = stream->index;
 
             // Write the compressed frame to the media file.
             ret = av_interleaved_write_frame(output_format_context, pkt);
@@ -376,7 +395,49 @@ namespace media {
     // return 1 when encoding is finished, 0 otherwise.
     int VideoFileWriter::WriteAudioFrameTest(AVFormatContext* output_format_context,
                                              OutputStream* ost) {
+        AVCodecContext* codec_context;
+        AVFrame* frame;
+        int ret;
+        int dst_nb_samples;
 
+        codec_context = audio_stream_.encoder;
+
+        frame = GetAudioFrameTest();
+
+        if (frame) {
+            // Convert samples from native format to destination codec format, using
+            // the resampler compute destination number of samples.
+            dst_nb_samples = av_rescale_rnd(swr_get_delay(audio_stream_.swr_ctx,
+                                                          codec_context->sample_rate) + frame->nb_samples,
+                                            codec_context->sample_rate,
+                                            codec_context->sample_rate,
+                                            AV_ROUND_UP);
+
+            ret = av_frame_make_writable(audio_stream_.frame);
+
+            // Convert to destination format.
+            ret = swr_convert(audio_stream_.swr_ctx,
+                              audio_stream_.frame->data,
+                              dst_nb_samples,
+                              (const uint8_t**) frame->data,
+                              frame->nb_samples);
+            if (ret < 0) {
+                LOG(ERROR) << "Error while converting";
+                return ret;
+            }
+            frame = audio_stream_.frame;
+
+            frame->pts = av_rescale_q(audio_stream_.samples_count,
+                                      {1, codec_context->sample_rate},
+                                      codec_context->time_base);
+            audio_stream_.samples_count += dst_nb_samples;
+        }
+
+        return WriteFrame(output_format_context_,
+                          codec_context,
+                          audio_stream_.stream,
+                          frame,
+                          audio_stream_.tmp_pkt);
     }
 
     AVFrame* VideoFileWriter::GetVideoFrameTest() {
@@ -437,7 +498,27 @@ namespace media {
     }
 
     AVFrame* VideoFileWriter::GetAudioFrameTest() {
+        AVFrame* frame = audio_stream_.tmp_frame;
+        int i, j, v;
+        int16_t* q = (int16_t*)frame->data[0];
 
+        // Check if we want to generate more frames.
+        if (av_compare_ts(audio_stream_.next_pts, audio_stream_.encoder->time_base,
+                          10, {1, 1}) > 0)
+            return nullptr;
+
+        for (j = 0; j < frame->nb_samples; j++) {
+            v = (int)(sin(audio_stream_.t) * 10000);
+            for (i = 0; i < audio_stream_.encoder->channels; i++)
+                *q++ = v;
+            audio_stream_.t += audio_stream_.cr;
+            audio_stream_.cr += audio_stream_.cr2;
+        }
+
+        frame->pts = audio_stream_.next_pts;
+        audio_stream_.next_pts += frame->nb_samples;
+
+        return frame;
     }
 
     void VideoFileWriter::FillYUVImageTest(AVFrame* pict,
@@ -459,5 +540,14 @@ namespace media {
                 pict->data[2][y * pict->linesize[2] + x] = 64 + x + i * 5;
             }
         }
+    }
+
+    void VideoFileWriter::CloseStream(OutputStream* stream) {
+        avcodec_free_context(&stream->encoder);
+        av_frame_free(&stream->frame);
+        av_frame_free(&stream->tmp_frame);
+        av_packet_free(&stream->tmp_pkt);
+        sws_freeContext(stream->sws_ctx);
+        swr_free(&stream->swr_ctx);
     }
 }

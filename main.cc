@@ -20,5 +20,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    writer->WriteTest();
+
     return EXIT_SUCCESS;
 }
